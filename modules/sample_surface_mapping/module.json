@@ -1,0 +1,15 @@
+{
+    "id": "sample_surface_mapping",
+    "name": "Sample Surface Mapping",
+    "category": "XY Stage",
+    "version": "1.0.0",
+    "description": "웨이퍼 표면 맵핑 및 패턴 분석",
+    "icon": "🗺️",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/96. Sample_Surface_Mapping",
+    "entry_dev": "main.py",
+    "entry_prod": "main.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈: Surface Mapping, Pattern 분석, Stage 분석"
+    ],
+    "manual_url": ""
+}

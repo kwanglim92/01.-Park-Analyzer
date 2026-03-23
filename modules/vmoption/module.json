@@ -1,0 +1,15 @@
+{
+    "id": "vmoption",
+    "name": "VM Option Generator",
+    "category": "Utility",
+    "version": "1.0.0",
+    "description": "장비 VM 옵션 자동 생성기",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/03. VMoption",
+    "entry_dev": "VMOptionGenerator.exe",
+    "entry_prod": "VMOptionGenerator.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈: VM 옵션 생성 기능"
+    ],
+    "manual_url": ""
+}

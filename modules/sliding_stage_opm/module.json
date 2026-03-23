@@ -1,0 +1,15 @@
+{
+    "id": "sliding_stage_opm",
+    "name": "Sliding Stage OPM Repeatability",
+    "category": "Sliding Stage",
+    "version": "1.0.0",
+    "description": "슬라이딩 스테이지 OPM 반복성 분석",
+    "icon": "📈",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/80. Sliding Stage OPM Repeatability",
+    "entry_dev": "main.py",
+    "entry_prod": "main.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈: OPM 반복성 측정, Ball Screw Pitch 분석"
+    ],
+    "manual_url": ""
+}

@@ -1,0 +1,15 @@
+{
+    "id": "xy_stage_offset",
+    "name": "XY Stage Positioning Offset Analysis",
+    "category": "XY Stage",
+    "version": "1.0.0",
+    "description": "XY 스테이지 위치 결정 옵셋 분석 — Contour, Vector Map, Trend, 통계",
+    "icon": "📊",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/97. XY Stage Positioning Offset Analysis",
+    "entry_dev": "src/main.py",
+    "entry_prod": "main.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈: Contour Map, Vector Map, Trend, 통계 분석, Die 편차 분석"
+    ],
+    "manual_url": ""
+}

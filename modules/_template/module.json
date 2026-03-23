@@ -1,0 +1,15 @@
+{
+    "id": "my_new_tool",
+    "name": "My New Tool",
+    "category": "Utility",
+    "version": "1.0.0",
+    "description": "새 Tool에 대한 한줄 설명",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/XX. MyNewTool",
+    "entry_dev": "main.py",
+    "entry_prod": "main.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈"
+    ],
+    "manual_url": ""
+}

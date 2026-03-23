@@ -1,0 +1,12 @@
+{
+  "app": {
+    "version": "1.0.0",
+    "dev_mode": true,
+    "language": "ko"
+  },
+  "window": {
+    "width": 1920,
+    "height": 1009
+  },
+  "pinned": []
+}
