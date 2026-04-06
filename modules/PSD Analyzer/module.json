@@ -11,7 +11,7 @@
     "changelog": [],
     "manual_url": "",
     "build": {
-        "method": "copy",
-        "copy_from": "psd1.3.1.exe"
+        "method": "copy_dir",
+        "copy_from": "."
     }
 }

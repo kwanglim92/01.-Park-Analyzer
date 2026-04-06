@@ -91,6 +91,9 @@ class ModuleEditDialog(QDialog):
 
         self._category_combo = QComboBox()
         self._category_combo.setEditable(True)
+        self._category_combo.lineEdit().setPlaceholderText(
+            "선택 또는 직접 입력"
+        )
         for cat in self._categories:
             self._category_combo.addItem(cat)
         sec1_layout.addLayout(self._row("카테고리", self._category_combo))
@@ -116,10 +119,17 @@ class ModuleEditDialog(QDialog):
 
         layout.addWidget(sec1)
 
-        # ════════ 경로 ════════
-        sec2 = self._section("경로")
+        # ════════ 경로 & 빌드 ════════
+        sec2 = self._section("경로 & 빌드")
         sec2_layout = sec2.layout()
 
+        # -- 빌드 방식 (최상단) --
+        self._method_combo = QComboBox()
+        self._method_combo.addItems(["pyinstaller", "copy", "copy_dir", "none"])
+        self._method_combo.currentTextChanged.connect(self._on_method_changed)
+        sec2_layout.addLayout(self._row("빌드 방식", self._method_combo))
+
+        # -- 개발 경로 (공통) --
         dev_row = QHBoxLayout()
         dev_row.setSpacing(6)
         self._dev_path_edit = QLineEdit()
@@ -137,6 +147,7 @@ class ModuleEditDialog(QDialog):
         dev_row.addWidget(browse_btn)
         sec2_layout.addLayout(self._row("개발 경로", dev_row))
 
+        # -- 진입점 (공통, 자동 동기화) --
         entry_row = QHBoxLayout()
         entry_row.setSpacing(12)
         self._entry_dev_edit = QLineEdit()
@@ -149,20 +160,9 @@ class ModuleEditDialog(QDialog):
         self._entry_prod_edit = QLineEdit()
         self._entry_prod_edit.setPlaceholderText("main.exe")
         entry_row.addWidget(self._entry_prod_edit, 1)
-        sec2_layout.addLayout(self._row("진입점 (개발)", entry_row))
+        sec2_layout.addLayout(self._row("진입점", entry_row))
 
-        layout.addWidget(sec2)
-
-        # ════════ 빌드 설정 ════════
-        sec3 = self._section("빌드 설정")
-        sec3_layout = sec3.layout()
-
-        self._method_combo = QComboBox()
-        self._method_combo.addItems(["pyinstaller", "copy", "none"])
-        self._method_combo.currentTextChanged.connect(self._on_method_changed)
-        sec3_layout.addLayout(self._row("빌드 방식", self._method_combo))
-
-        # -- PyInstaller fields --
+        # ── PyInstaller 전용 ──
         self._pi_container = QWidget()
         self._pi_container.setStyleSheet(f"background: transparent;")
         pi_layout = QVBoxLayout(self._pi_container)
@@ -180,6 +180,7 @@ class ModuleEditDialog(QDialog):
         pi_name_row.addWidget(bname_lbl)
         self._build_name_edit = QLineEdit()
         self._build_name_edit.setPlaceholderText("MyTool")
+        self._build_name_edit.textChanged.connect(self._sync_entry_prod_from_build_name)
         pi_name_row.addWidget(self._build_name_edit, 1)
         pi_layout.addLayout(self._row("빌드 진입점", pi_name_row))
 
@@ -200,9 +201,16 @@ class ModuleEditDialog(QDialog):
         self._adddata_edit.setPlaceholderText("config;config, assets;assets  (콤마 구분)")
         pi_layout.addLayout(self._row("Add Data", self._adddata_edit))
 
-        sec3_layout.addWidget(self._pi_container)
+        pi_hint = QLabel(
+            "  빌드 이름 변경 시 배포 진입점(entry_prod)이 자동 동기화됩니다."
+        )
+        pi_hint.setStyleSheet(f"color: {FG2}; font-size: 11px; border: none;")
+        pi_hint.setWordWrap(True)
+        pi_layout.addWidget(pi_hint)
 
-        # -- Copy fields --
+        sec2_layout.addWidget(self._pi_container)
+
+        # ── Copy 전용 ──
         self._copy_container = QWidget()
         self._copy_container.setStyleSheet(f"background: transparent;")
         cp_layout = QVBoxLayout(self._copy_container)
@@ -227,15 +235,51 @@ class ModuleEditDialog(QDialog):
         cp_layout.addLayout(self._row("복사 원본", cp_file_row))
 
         cp_hint = QLabel(
-            "  .exe 파일을 선택하면 개발 경로와 배포 진입점이 자동으로 설정됩니다."
+            "  .exe 선택 시 개발 경로·진입점이 자동 설정됩니다."
         )
         cp_hint.setStyleSheet(f"color: {FG2}; font-size: 11px; border: none;")
         cp_hint.setWordWrap(True)
         cp_layout.addWidget(cp_hint)
 
-        sec3_layout.addWidget(self._copy_container)
+        sec2_layout.addWidget(self._copy_container)
 
-        layout.addWidget(sec3)
+        # ── Copy Dir 전용 ──
+        self._copydir_container = QWidget()
+        self._copydir_container.setStyleSheet(f"background: transparent;")
+        cd_layout = QVBoxLayout(self._copydir_container)
+        cd_layout.setContentsMargins(0, 0, 0, 0)
+        cd_layout.setSpacing(8)
+
+        cd_file_row = QHBoxLayout()
+        cd_file_row.setSpacing(6)
+        self._copydir_from_edit = QLineEdit()
+        self._copydir_from_edit.setPlaceholderText(
+            "하위 폴더 (기본: . = dev_path 전체)"
+        )
+        cd_file_row.addWidget(self._copydir_from_edit, 1)
+        cd_browse_btn = QPushButton(".exe 찾기")
+        cd_browse_btn.setFixedHeight(30)
+        cd_browse_btn.setCursor(Qt.PointingHandCursor)
+        cd_browse_btn.setStyleSheet(
+            f"QPushButton {{ background: {BG3}; color: {FG}; border: none; "
+            f"border-radius: 5px; padding: 0 12px; font-size: 12px; }}"
+            f"QPushButton:hover {{ background: {ACCENT}; color: {BG}; }}"
+        )
+        cd_browse_btn.clicked.connect(self._browse_exe_for_copydir)
+        cd_file_row.addWidget(cd_browse_btn)
+        cd_layout.addLayout(self._row("복사 원본 폴더", cd_file_row))
+
+        cd_hint = QLabel(
+            "  exe + _internal/ 폴더를 통째로 modules/<id>/로 복사합니다.\n"
+            "  .exe 선택 시 개발 경로·진입점·복사 폴더가 자동 설정됩니다."
+        )
+        cd_hint.setStyleSheet(f"color: {FG2}; font-size: 11px; border: none;")
+        cd_hint.setWordWrap(True)
+        cd_layout.addWidget(cd_hint)
+
+        sec2_layout.addWidget(self._copydir_container)
+
+        layout.addWidget(sec2)
 
         # ════════ 문서 관리 ════════
         sec4 = self._section("문서 관리")
@@ -387,6 +431,9 @@ class ModuleEditDialog(QDialog):
         self._adddata_edit.setText(", ".join(add_data))
 
         self._copy_from_edit.setText(build.get("copy_from", ""))
+        self._copydir_from_edit.setText(
+            build.get("copy_from", ".") if method == "copy_dir" else "."
+        )
 
         # 문서 관리
         self._manual_url_edit.setText(d.get("manual_url", ""))
@@ -402,6 +449,25 @@ class ModuleEditDialog(QDialog):
     def _on_method_changed(self, method: str):
         self._pi_container.setVisible(method == "pyinstaller")
         self._copy_container.setVisible(method == "copy")
+        self._copydir_container.setVisible(method == "copy_dir")
+
+        # 방식 변경 시 진입점 자동 동기화
+        if method == "pyinstaller":
+            self._sync_entry_prod_from_build_name()
+        elif method == "none":
+            # none이면 진입점 기본값
+            if not self._entry_dev_edit.text().strip():
+                self._entry_dev_edit.setText("main.py")
+            if not self._entry_prod_edit.text().strip():
+                self._entry_prod_edit.setText("main.exe")
+
+    def _sync_entry_prod_from_build_name(self):
+        """PyInstaller 빌드 이름 → entry_prod 자동 동기화."""
+        if self._method_combo.currentText() != "pyinstaller":
+            return
+        build_name = self._build_name_edit.text().strip()
+        if build_name:
+            self._entry_prod_edit.setText(f"{build_name}.exe")
 
     def _update_status(self):
         dev = self._dev_path_edit.text().strip()
@@ -440,6 +506,25 @@ class ModuleEditDialog(QDialog):
         self._copy_from_edit.setText(filename)
         self._entry_prod_edit.setText(filename)
         self._entry_dev_edit.setText(filename)
+
+    def _browse_exe_for_copydir(self):
+        """exe 파일 선택 → dev_path(부모), entry_dev/prod, copy_from 자동 설정."""
+        start_dir = self._dev_path_edit.text() or ""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, ".exe 파일 선택", start_dir,
+            "실행 파일 (*.exe);;모든 파일 (*)",
+        )
+        if not file_path:
+            return
+
+        file_path = Path(file_path)
+        folder = str(file_path.parent).replace("\\", "/")
+        filename = file_path.name
+
+        self._dev_path_edit.setText(folder)
+        self._entry_dev_edit.setText(filename)
+        self._entry_prod_edit.setText(filename)
+        self._copydir_from_edit.setText(".")
 
     # ──────────────────────────────────────
     #  Save
@@ -494,6 +579,8 @@ class ModuleEditDialog(QDialog):
             )
         elif method == "copy":
             build["copy_from"] = self._copy_from_edit.text().strip()
+        elif method == "copy_dir":
+            build["copy_from"] = self._copydir_from_edit.text().strip() or "."
 
         data["build"] = build
         self._result_data = data

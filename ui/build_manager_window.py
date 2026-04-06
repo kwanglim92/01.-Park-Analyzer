@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QMessageBox, QSizePolicy,
     QDialog, QCheckBox, QScrollArea, QDialogButtonBox,
 )
-from PySide6.QtCore import Qt, QProcess
+from PySide6.QtCore import Qt, QProcess, QThread, Signal
 from PySide6.QtGui import QFont, QColor
 
 from core.module_manager import ModuleManager, ModuleInfo, MODULES_DIR
@@ -31,8 +31,46 @@ from ui.styles import BG, BG2, BG3, FG, FG2, ACCENT, GREEN, RED, ORANGE, TEAL, P
 _METHOD_LABELS = {
     "pyinstaller": "PI",
     "copy": "CP",
+    "copy_dir": "CD",
     "none": "--",
 }
+
+
+# ═══════════════════════════════════════════════════
+#  Copy Dir Worker (background thread)
+# ═══════════════════════════════════════════════════
+class _CopyDirWorker(QThread):
+    """폴더째 복사를 백그라운드 스레드에서 실행."""
+    finished = Signal(bool, str)  # (success, message)
+
+    def __init__(self, src: Path, target: Path, mod_json: dict, parent=None):
+        super().__init__(parent)
+        self._src = src
+        self._target = target
+        self._mod_json = mod_json
+
+    def run(self):
+        try:
+            if self._target.exists():
+                shutil.rmtree(str(self._target), ignore_errors=True)
+            self._target.mkdir(parents=True, exist_ok=True)
+
+            for item in self._src.iterdir():
+                dst = self._target / item.name
+                if item.is_dir():
+                    shutil.copytree(str(item), str(dst))
+                else:
+                    shutil.copy2(str(item), str(dst))
+
+            # module.json 보존
+            json_path = self._target / "module.json"
+            if not json_path.exists():
+                with open(json_path, "w", encoding="utf-8") as f:
+                    json.dump(self._mod_json, f, indent=4, ensure_ascii=False)
+
+            self.finished.emit(True, "")
+        except Exception as e:
+            self.finished.emit(False, str(e))
 
 
 # ═══════════════════════════════════════════════════
@@ -1066,6 +1104,8 @@ class BuildManagerWindow(QMainWindow):
         elif method == "copy":
             self._do_copy_build(mod)
             self._build_next()  # copy는 즉시 완료 → 다음으로
+        elif method == "copy_dir":
+            self._start_copy_dir_build(mod)
         else:
             self._log_msg(f"  [{mod.name}] SKIP (method={method})", color=FG2)
             self._build_next()
@@ -1186,6 +1226,47 @@ class BuildManagerWindow(QMainWindow):
             f"  [{mod.name}] OK (copy) → modules/{mod.id}/{mod.entry_prod}",
             color=GREEN,
         )
+
+    # ── Copy Dir 빌드 (폴더째 복사, 백그라운드) ──
+    def _start_copy_dir_build(self, mod: ModuleInfo):
+        build = mod.build_config or {}
+        copy_from = build.get("copy_from", ".")
+        dev_path = mod.dev_path
+
+        if not dev_path:
+            self._log_msg(f"  [{mod.name}] SKIP: dev_path 미설정", color=ORANGE)
+            self._build_next()
+            return
+
+        src = Path(dev_path) / copy_from
+        if not src.exists():
+            self._log_msg(f"  [{mod.name}] FAIL: 원본 없음 ({src})", color=RED)
+            self._build_next()
+            return
+
+        target = MODULES_DIR / mod.id
+        self._log_msg(f"  [{mod.name}] 폴더 복사 중...", color=ACCENT)
+
+        self._copy_dir_worker = _CopyDirWorker(src, target, mod.to_json(), self)
+        self._copy_dir_worker.finished.connect(
+            lambda ok, err, m=mod: self._on_copy_dir_finished(ok, err, m)
+        )
+        self._copy_dir_worker.start()
+
+    def _on_copy_dir_finished(self, success: bool, error: str, mod: ModuleInfo):
+        if success:
+            self._log_msg(
+                f"  [{mod.name}] OK (copy_dir) → modules/{mod.id}/",
+                color=GREEN,
+            )
+        else:
+            self._log_msg(
+                f"  [{mod.name}] FAIL (copy_dir): {error}",
+                color=RED,
+            )
+        self._copy_dir_worker = None
+        self._current_build_module = None
+        self._build_next()
 
     # ── 런처 빌드 (전체 빌드 마지막 단계) ──
     def _start_launcher_build(self):

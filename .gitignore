@@ -27,6 +27,7 @@ installer/
 .agents/
 _agent/
 _agents/
+.claude/
 
 # IDE / Editor
 .vscode/

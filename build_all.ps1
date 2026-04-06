@@ -109,6 +109,26 @@ foreach ($jsonFile in $moduleJsons) {
                 Write-Host "  [WARN] Source not found: $srcFile"
             }
         }
+        "copy_dir" {
+            Write-Host "  [$toolCount/$toolTotal] Copying dir: $modName..."
+
+            $copyFrom = if ($build.copy_from) { $build.copy_from } else { "." }
+            $srcDir = Join-Path $devPath $copyFrom
+            $dstDir = "$MODULES\$modId"
+
+            if (Test-Path $srcDir) {
+                if (Test-Path $dstDir) { Remove-Item -Recurse -Force $dstDir }
+                Copy-Item -Recurse -Force $srcDir $dstDir
+                # Ensure module.json exists in destination
+                $dstJson = "$dstDir\module.json"
+                if (-not (Test-Path $dstJson)) {
+                    Copy-Item -Force $($jsonFile.FullName) $dstJson
+                }
+                Write-Host "  [OK] $modName -> modules\$modId\ (dir copy)"
+            } else {
+                Write-Host "  [WARN] Source dir not found: $srcDir"
+            }
+        }
         "none" {
             Write-Host "  [$toolCount/$toolTotal] $modName (skip - manual)"
         }
