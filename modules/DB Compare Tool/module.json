@@ -1,0 +1,19 @@
+{
+    "id": "DB Compare Tool",
+    "name": "DB Compare Tool",
+    "category": "Utility",
+    "version": "1.0.0",
+    "description": "산업용 장비 VM Option 관리 Tool",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/Tool",
+    "entry_dev": "DB Compare Tool.exe",
+    "entry_prod": "DB Compare Tool.exe",
+    "changelog": [
+        "v1.0.0 — 초기 릴리즈"
+    ],
+    "manual_url": "http://10.4.1.141/books/research-checklist-revision/page/00-checklist-version",
+    "build": {
+        "method": "copy",
+        "copy_from": "DB Compare Tool.exe"
+    }
+}

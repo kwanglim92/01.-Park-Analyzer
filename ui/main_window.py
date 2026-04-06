@@ -1,5 +1,5 @@
 """
-Park Analyzer — Launcher Main Window.
+Launcher Main Window.
 
 좌측: 검색 바 + Pinned 섹션 + Module 가로 막대 그래프
 우측: 선택된 Module의 Tool 카드
@@ -378,10 +378,12 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("🔬 Park Analyzer")
-        self.setMinimumSize(900, 540)
-
         self._settings = load_settings()
+        self._display_name = self._settings.get("app", {}).get(
+            "display_name", "Integrated Analyzer"
+        )
+        self.setWindowTitle(f"🔬 {self._display_name}")
+        self.setMinimumSize(900, 540)
         self._manager = ModuleManager()
         self._cards: list[ModuleCard] = []
         self._bars: dict[str, CategoryBar] = {}
@@ -413,7 +415,7 @@ class MainWindow(QMainWindow):
         #  HEADER
         # ══════════════════════════════════════
         hdr = QHBoxLayout()
-        title = QLabel("🔬 Park Analyzer")
+        title = QLabel(f"🔬 {self._display_name}")
         title.setStyleSheet(f"color: {FG}; font-size: 26px; font-weight: bold;")
         hdr.addWidget(title)
         hdr.addStretch()
@@ -525,7 +527,7 @@ class MainWindow(QMainWindow):
     #  Module Discovery
     # ──────────────────────────────────────────
     def _discover_modules(self):
-        self._log_msg("Park Analyzer 시작")
+        self._log_msg(f"{self._display_name} 시작")
         modules = self._manager.discover()
 
         if not modules:

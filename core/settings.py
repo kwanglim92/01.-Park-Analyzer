@@ -1,5 +1,5 @@
 """
-Park Analyzer — Settings Manager.
+Settings Manager.
 
 JSON 설정 파일 로드/저장 with 기본값 병합.
 """
@@ -16,6 +16,8 @@ _SETTINGS_FILE = _CONFIG_DIR / "settings.json"
 _DEFAULTS = {
     "app": {
         "version": "1.0.0",
+        "display_name": "Integrated Analyzer",
+        "build_name": "IntegratedAnalyzer",
         "dev_mode": True,
         "language": "ko",
     },

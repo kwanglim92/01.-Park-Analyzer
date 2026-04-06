@@ -11,5 +11,10 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈: VM 옵션 생성 기능"
     ],
-    "manual_url": ""
+    "manual_url": "",
+    "build": {
+        "method": "copy",
+        "copy_from": "VMOptionGenerator.exe"
+    },
+    "order": 5
 }

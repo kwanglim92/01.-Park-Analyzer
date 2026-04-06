@@ -11,5 +11,14 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈"
     ],
-    "manual_url": ""
+    "manual_url": "",
+    "build": {
+        "method": "pyinstaller",
+        "entry": "main.py",
+        "build_name": "MyNewTool",
+        "onefile": true,
+        "windowed": true,
+        "hidden_imports": [],
+        "add_data": []
+    }
 }

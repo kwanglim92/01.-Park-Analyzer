@@ -1,5 +1,5 @@
 """
-Park Analyzer — Dark Theme Stylesheet.
+Dark Theme Stylesheet.
 
 Catppuccin Mocha 기반 다크 테마 QSS.
 Skill 01 (PySide6 Dark Theme) 패턴 적용.

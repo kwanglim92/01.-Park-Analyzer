@@ -11,5 +11,24 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈: Surface Mapping, Pattern 분석, Stage 분석"
     ],
-    "manual_url": ""
+    "manual_url": "",
+    "build": {
+        "method": "pyinstaller",
+        "entry": "main.py",
+        "build_name": "SampleSurfaceMapping",
+        "onefile": true,
+        "windowed": true,
+        "hidden_imports": [
+            "analyzers",
+            "controllers",
+            "core",
+            "parsers",
+            "ui",
+            "utils"
+        ],
+        "add_data": [
+            "config;config"
+        ]
+    },
+    "order": 6
 }

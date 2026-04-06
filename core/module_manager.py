@@ -1,5 +1,5 @@
 """
-Park Analyzer — Module Manager.
+Module Manager.
 
 modules/ 폴더를 자동 스캔하여 module.json을 읽고,
 subprocess로 각 분석 모듈을 실행합니다.
@@ -48,6 +48,8 @@ class ModuleInfo:
     entry_prod: str = "main.exe"
     changelog: list[str] = field(default_factory=list)
     manual_url: str = ""
+    order: int = 0
+    build_config: dict = field(default_factory=dict)
 
     # Runtime state
     _process: Optional[subprocess.Popen] = field(
@@ -71,7 +73,29 @@ class ModuleInfo:
             entry_prod=data.get("entry_prod", "main.exe"),
             changelog=data.get("changelog", []),
             manual_url=data.get("manual_url", ""),
+            order=data.get("order", 0),
+            build_config=data.get("build", {}),
         )
+
+    def to_json(self) -> dict:
+        """ModuleInfo를 JSON 직렬화 가능한 dict로 변환."""
+        data = {
+            "id": self.id,
+            "name": self.name,
+            "category": self.category,
+            "version": self.version,
+            "description": self.description,
+            "icon": self.icon,
+            "dev_path": self.dev_path,
+            "entry_dev": self.entry_dev,
+            "entry_prod": self.entry_prod,
+            "changelog": self.changelog,
+            "manual_url": self.manual_url,
+            "order": self.order,
+        }
+        if self.build_config:
+            data["build"] = self.build_config
+        return data
 
     @property
     def is_available(self) -> bool:
@@ -142,6 +166,7 @@ class ModuleManager:
             except (json.JSONDecodeError, KeyError, OSError) as e:
                 logger.error(f"module.json 파싱 실패 ({folder.name}): {e}")
 
+        self._modules.sort(key=lambda m: (m.order, m.name))
         logger.info(f"총 {len(self._modules)}개 모듈 탐색 완료")
         return self._modules
 

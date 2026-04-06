@@ -1,0 +1,17 @@
+{
+    "id": "PSD Analyzer",
+    "name": "PSD Analyzer",
+    "category": "Utility",
+    "version": "1.3.1",
+    "description": "RMS Zero Scan",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/100/extracted",
+    "entry_dev": "psd1.3.1.exe",
+    "entry_prod": "psd1.3.1.exe",
+    "changelog": [],
+    "manual_url": "",
+    "build": {
+        "method": "copy",
+        "copy_from": "psd1.3.1.exe"
+    }
+}

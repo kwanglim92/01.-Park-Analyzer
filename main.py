@@ -1,5 +1,5 @@
 """
-Park Analyzer — Main Entry Point.
+Main Entry Point.
 
 분석 모듈 통합 런처.
 """
@@ -7,9 +7,16 @@ import sys
 from pathlib import Path
 
 from loguru import logger
+from core.settings import load_settings
+
+# ── Settings ──
+_settings = load_settings()
+_app = _settings.get("app", {})
+_display_name = _app.get("display_name", "Integrated Analyzer")
+_build_name = _app.get("build_name", "IntegratedAnalyzer")
 
 # ── Logging ──
-LOG_DIR = Path.home() / "AppData" / "Local" / "ParkAnalyzer" / "logs"
+LOG_DIR = Path.home() / "AppData" / "Local" / _build_name / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 logger.remove()
@@ -42,15 +49,15 @@ def main():
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.setApplicationName("Park Analyzer")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationName(_display_name)
+    app.setApplicationVersion(_app.get("version", "1.0.0"))
     app.setWindowIcon(QIcon(_resource_path("assets/app.ico")))
     app.setStyleSheet(DARK_STYLE)
 
     window = MainWindow()
     window.show()
 
-    logger.info("Park Analyzer 런처 시작")
+    logger.info(f"{_display_name} 런처 시작")
     sys.exit(app.exec())
 
 

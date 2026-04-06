@@ -1,0 +1,17 @@
+{
+    "id": "Surface Mapping",
+    "name": "Surface Mapping",
+    "category": "XY Stage",
+    "version": "1.0.0",
+    "description": "Surface Mapping",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/Tool",
+    "entry_dev": "samplemap0.2.exe",
+    "entry_prod": "samplemap0.2.exe",
+    "changelog": [],
+    "manual_url": "",
+    "build": {
+        "method": "copy",
+        "copy_from": "samplemap0.2.exe"
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "id": "PC Setup",
+    "name": "PC Setup",
+    "category": "Utility",
+    "version": "1.0.3",
+    "description": "산업용 장비 PC 설정 프로그램",
+    "icon": "",
+    "dev_path": "C:/Users/Spare/Desktop/Tool",
+    "entry_dev": "pc_setup_1.0.3.exe",
+    "entry_prod": "pc_setup_1.0.3.exe",
+    "changelog": [],
+    "manual_url": "",
+    "build": {
+        "method": "copy",
+        "copy_from": "pc_setup_1.0.3.exe"
+    }
+}

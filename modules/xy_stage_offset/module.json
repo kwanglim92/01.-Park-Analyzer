@@ -11,5 +11,21 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈: Contour Map, Vector Map, Trend, 통계 분석, Die 편차 분석"
     ],
-    "manual_url": ""
+    "manual_url": "",
+    "build": {
+        "method": "pyinstaller",
+        "entry": "src/main.py",
+        "build_name": "XYStageOffset",
+        "onefile": true,
+        "windowed": true,
+        "hidden_imports": [
+            "src.core",
+            "src.ui",
+            "src.charts"
+        ],
+        "add_data": [
+            "src/assets;src/assets"
+        ]
+    },
+    "order": 6
 }
