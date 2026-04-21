@@ -1,7 +1,7 @@
 {
     "id": "PSD Analyzer",
     "name": "PSD Analyzer",
-    "category": "Utility",
+    "category": "Noise",
     "version": "1.3.1",
     "description": "RMS Zero Scan",
     "icon": "",
@@ -9,7 +9,9 @@
     "entry_dev": "psd1.3.1.exe",
     "entry_prod": "psd1.3.1.exe",
     "changelog": [],
-    "manual_url": "",
+    "manual_wiki": "",
+    "manual_sharepoint": "https://parkafm.sharepoint.com/:p:/s/MC-AX/IQCPylPAeyzEQ5tm717Pzd7fAS4FKLSPSeE7GBar3CK6Y8k?e=Kxwk4d",
+    "order": 0,
     "build": {
         "method": "copy_dir",
         "copy_from": "."

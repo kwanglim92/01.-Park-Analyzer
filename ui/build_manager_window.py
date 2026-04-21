@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QAbstractItemView, QMessageBox, QSizePolicy,
     QDialog, QCheckBox, QScrollArea, QDialogButtonBox,
+    QProgressBar,
 )
 from PySide6.QtCore import Qt, QProcess, QThread, Signal
 from PySide6.QtGui import QFont, QColor
@@ -34,6 +35,28 @@ _METHOD_LABELS = {
     "copy_dir": "CD",
     "none": "--",
 }
+
+
+# ── File size utilities ──
+def _format_file_size(size_bytes: int) -> str:
+    """바이트 크기를 사람이 읽기 좋은 형식으로 변환."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 ** 2:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 ** 3:
+        return f"{size_bytes / (1024 ** 2):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 ** 3):.2f} GB"
+
+
+def _get_dir_size(path: Path) -> int:
+    """디렉토리의 총 크기를 재귀적으로 계산."""
+    total = 0
+    for entry in path.rglob("*"):
+        if entry.is_file():
+            total += entry.stat().st_size
+    return total
 
 
 # ═══════════════════════════════════════════════════
@@ -218,7 +241,18 @@ class BuildSelectDialog(QDialog):
     def _update_count(self):
         checked = sum(1 for cb in self._checkboxes if cb.isChecked())
         total = len(self._checkboxes)
-        self._count_lbl.setText(f"  {checked} / {total}")
+        total_size = 0
+        for i, cb in enumerate(self._checkboxes):
+            if cb.isChecked():
+                mod = self._modules[i]
+                prod_path = MODULES_DIR / mod.id / mod.entry_prod
+                if prod_path.exists():
+                    if prod_path.is_dir():
+                        total_size += _get_dir_size(prod_path)
+                    else:
+                        total_size += prod_path.stat().st_size
+        size_text = _format_file_size(total_size) if total_size > 0 else "—"
+        self._count_lbl.setText(f"  {checked} / {total}    (모듈 합계: {size_text})")
 
     def _on_build(self):
         self._selected = []
@@ -426,6 +460,8 @@ class BuildManagerWindow(QMainWindow):
         self._build_queue: list[ModuleInfo] = []
         self._current_build_module: ModuleInfo | None = None
         self._build_launcher_after: bool = False
+        self._build_total: int = 0
+        self._build_done: int = 0
 
         self._build_ui()
         self._refresh_modules()
@@ -475,8 +511,8 @@ class BuildManagerWindow(QMainWindow):
         left_vbox.setSpacing(10)
 
         self._table = QTableWidget()
-        self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels(["상태", "이름", "카테고리", "버전", "빌드"])
+        self._table.setColumnCount(6)
+        self._table.setHorizontalHeaderLabels(["상태", "이름", "카테고리", "버전", "빌드", "문서"])
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -491,8 +527,10 @@ class BuildManagerWindow(QMainWindow):
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.Fixed)
+        header.setSectionResizeMode(5, QHeaderView.Fixed)
         self._table.setColumnWidth(0, 50)
         self._table.setColumnWidth(4, 50)
+        self._table.setColumnWidth(5, 60)
 
         self._table.setStyleSheet(f"""
             QTableWidget {{
@@ -634,6 +672,7 @@ class BuildManagerWindow(QMainWindow):
             "기본 정보": [
                 ("ID", "id"), ("이름", "name"), ("카테고리", "category"),
                 ("버전", "version"), ("설명", "description"),
+                ("파일 크기", "file_size"),
             ],
             "경로 정보": [
                 ("개발 경로", "dev_path"), ("개발 진입점", "entry_dev"),
@@ -645,7 +684,9 @@ class BuildManagerWindow(QMainWindow):
                 ("Add Data", "add_data"),
             ],
             "문서 관리": [
-                ("매뉴얼 URL", "manual_url"), ("변경사항", "changelog"),
+                ("MC-Wiki", "manual_wiki"),
+                ("SharePoint", "manual_sharepoint"),
+                ("변경사항", "changelog"),
             ],
         }
 
@@ -681,6 +722,37 @@ class BuildManagerWindow(QMainWindow):
         body.addWidget(detail_scroll, 2)  # 우측 40%
 
         root.addLayout(body, 1)
+
+        # ── Progress Bar ──
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(10)
+
+        self._progress_label = QLabel("")
+        self._progress_label.setStyleSheet(
+            f"color: {ACCENT}; font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        self._progress_label.setFixedWidth(280)
+        progress_row.addWidget(self._progress_label)
+
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setFixedHeight(18)
+        self._progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background: {BG2}; border: 1px solid {BG3}; border-radius: 4px;
+                text-align: center; color: {FG}; font-size: 11px;
+            }}
+            QProgressBar::chunk {{
+                background: {ACCENT}; border-radius: 3px;
+            }}
+        """)
+        progress_row.addWidget(self._progress_bar, 1)
+
+        self._progress_widget = QWidget()
+        self._progress_widget.setLayout(progress_row)
+        self._progress_widget.setVisible(False)
+        root.addWidget(self._progress_widget)
 
         # ── Log Panel ──
         self._log_panel = QTextEdit()
@@ -731,6 +803,21 @@ class BuildManagerWindow(QMainWindow):
             method_item.setTextAlignment(Qt.AlignCenter)
             self._table.setItem(row, 4, method_item)
 
+            # 문서 상태
+            w = "O" if mod.manual_wiki else "X"
+            s = "O" if mod.manual_sharepoint else "X"
+            doc_text = f"{w}/{s}"
+            if mod.manual_wiki and mod.manual_sharepoint:
+                doc_color = GREEN
+            elif mod.manual_wiki or mod.manual_sharepoint:
+                doc_color = ORANGE
+            else:
+                doc_color = RED
+            doc_item = QTableWidgetItem(doc_text)
+            doc_item.setForeground(QColor(doc_color))
+            doc_item.setTextAlignment(Qt.AlignCenter)
+            self._table.setItem(row, 5, doc_item)
+
         self._selected_module = None
         self._clear_detail()
         self._log_msg(f"{len(modules)}개 모듈 탐색 완료")
@@ -758,6 +845,16 @@ class BuildManagerWindow(QMainWindow):
         self._detail_labels["version"].setText(mod.version)
         self._detail_labels["description"].setText(mod.description or "—")
 
+        prod_path = MODULES_DIR / mod.id / mod.entry_prod
+        if prod_path.exists():
+            if prod_path.is_dir():
+                size = _get_dir_size(prod_path)
+            else:
+                size = prod_path.stat().st_size
+            self._detail_labels["file_size"].setText(_format_file_size(size))
+        else:
+            self._detail_labels["file_size"].setText("빌드 안됨")
+
         self._detail_labels["dev_path"].setText(mod.dev_path or "—")
         self._detail_labels["entry_dev"].setText(mod.entry_dev)
         self._detail_labels["entry_prod"].setText(mod.entry_prod)
@@ -780,10 +877,11 @@ class BuildManagerWindow(QMainWindow):
         add_data = build.get("add_data", [])
         self._detail_labels["add_data"].setText(", ".join(add_data) if add_data else "—")
 
-        self._detail_labels["manual_url"].setText(mod.manual_url or "—")
+        self._detail_labels["manual_wiki"].setText(mod.manual_wiki or "—")
+        self._detail_labels["manual_sharepoint"].setText(mod.manual_sharepoint or "—")
         cl = mod.changelog
         self._detail_labels["changelog"].setText(
-            " | ".join(cl) if cl else "—"
+            ", ".join(e.get("version", "") for e in cl if e.get("version")) if cl else "—"
         )
 
     # ──────────────────────────────────────────
@@ -1038,6 +1136,23 @@ class BuildManagerWindow(QMainWindow):
         self._build_one_btn.setEnabled(not building)
         self._build_all_btn.setEnabled(not building)
 
+    def _show_progress(self, step_name: str):
+        """진행 중 라벨만 업데이트 (done 증가 없이)."""
+        self._progress_label.setText(f"[{self._build_done}/{self._build_total}]  {step_name}")
+
+    def _advance_progress(self, step_name: str):
+        """단계 완료 → done 증가 + 바/라벨 업데이트."""
+        self._build_done += 1
+        pct = int(self._build_done / self._build_total * 100) if self._build_total else 0
+        self._progress_bar.setValue(pct)
+        self._progress_label.setText(f"[{self._build_done}/{self._build_total}]  {step_name}")
+
+    def _hide_progress(self):
+        """프로그레스 바 숨김."""
+        self._progress_widget.setVisible(False)
+        self._progress_bar.setValue(0)
+        self._progress_label.setText("")
+
     # ── 선택 빌드 ──
     def _on_build_selected(self):
         if self._selected_module is None:
@@ -1048,6 +1163,10 @@ class BuildManagerWindow(QMainWindow):
 
         self._build_queue = [self._selected_module]
         self._build_launcher_after = False
+        self._build_total = 1
+        self._build_done = 0
+        self._progress_bar.setValue(0)
+        self._progress_widget.setVisible(True)
         self._log_msg(f"━━━ 선택 빌드 시작: {self._selected_module.name} ━━━", color=ACCENT)
         self._set_building(True)
         self._build_next()
@@ -1073,6 +1192,10 @@ class BuildManagerWindow(QMainWindow):
         self._build_queue = selected
         self._build_selected_ids = {m.id for m in selected}
         self._build_launcher_after = True  # 전체 빌드 시 런처도 빌드
+        self._build_total = len(selected) + 2  # 모듈 + 런처 + installer
+        self._build_done = 0
+        self._progress_bar.setValue(0)
+        self._progress_widget.setVisible(True)
         names = ", ".join(m.name for m in selected)
         self._log_msg(
             f"━━━ 빌드 시작: {len(selected)}개 모듈 ({names}) + 런처 ━━━",
@@ -1090,6 +1213,7 @@ class BuildManagerWindow(QMainWindow):
                 self._start_launcher_build()
             else:
                 self._log_msg("━━━ 빌드 완료 ━━━", color=GREEN)
+                self._hide_progress()
                 self._set_building(False)
                 self._refresh_modules()
             return
@@ -1098,6 +1222,7 @@ class BuildManagerWindow(QMainWindow):
         self._current_build_module = mod
         build = mod.build_config or {}
         method = build.get("method", "none")
+        self._show_progress(f"{mod.name} 빌드 중...")
 
         if method == "pyinstaller":
             self._start_pyinstaller_build(mod)
@@ -1201,6 +1326,9 @@ class BuildManagerWindow(QMainWindow):
 
         self._build_process = None
         self._current_build_module = None
+        self._advance_progress(f"{mod.name} 완료")
+        if self._selected_module and self._selected_module.id == mod.id:
+            self._update_detail(self._selected_module)
         self._build_next()
 
     # ── Copy 빌드 ──
@@ -1220,12 +1348,31 @@ class BuildManagerWindow(QMainWindow):
             self._log_msg(f"  [{mod.name}] FAIL: 원본 없음 ({src})", color=RED)
             return
 
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(src), str(target))
-        self._log_msg(
-            f"  [{mod.name}] OK (copy) → modules/{mod.id}/{mod.entry_prod}",
-            color=GREEN,
-        )
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+            # src와 target이 동일 파일이면 복사 생략 (원본이 이미 제자리)
+            try:
+                same_file = target.exists() and src.resolve() == target.resolve()
+            except OSError:
+                same_file = False
+
+            if same_file:
+                self._log_msg(
+                    f"  [{mod.name}] OK (copy, 원본이 이미 제자리) → modules/{mod.id}/{mod.entry_prod}",
+                    color=GREEN,
+                )
+            else:
+                shutil.copy2(str(src), str(target))
+                self._log_msg(
+                    f"  [{mod.name}] OK (copy) → modules/{mod.id}/{mod.entry_prod}",
+                    color=GREEN,
+                )
+            self._advance_progress(f"{mod.name} 완료")
+            if self._selected_module and self._selected_module.id == mod.id:
+                self._update_detail(self._selected_module)
+        except Exception as e:
+            self._log_msg(f"  [{mod.name}] FAIL (copy): {e}", color=RED)
 
     # ── Copy Dir 빌드 (폴더째 복사, 백그라운드) ──
     def _start_copy_dir_build(self, mod: ModuleInfo):
@@ -1266,6 +1413,9 @@ class BuildManagerWindow(QMainWindow):
             )
         self._copy_dir_worker = None
         self._current_build_module = None
+        self._advance_progress(f"{mod.name} 완료")
+        if self._selected_module and self._selected_module.id == mod.id:
+            self._update_detail(self._selected_module)
         self._build_next()
 
     # ── 런처 빌드 (전체 빌드 마지막 단계) ──
@@ -1277,6 +1427,7 @@ class BuildManagerWindow(QMainWindow):
         display_name = app.get("display_name", "Integrated Analyzer")
         exe_name = display_name.replace(" ", "")
 
+        self._show_progress("런처 빌드 중...")
         self._log_msg(f"  [런처] PyInstaller 빌드 시작...", color=ACCENT)
 
         args = [
@@ -1316,8 +1467,7 @@ class BuildManagerWindow(QMainWindow):
             self._log_msg(f"  [런처] FAIL (exit code: {exit_code})", color=RED)
             self._build_process = None
             self._log_msg("━━━ 빌드 완료 (런처 실패) ━━━", color=ORANGE)
-            self._set_building(False)
-            self._refresh_modules()
+            self._finish_full_build()
             return
 
         self._log_msg(f"  [런처] PyInstaller OK", color=GREEN)
@@ -1364,11 +1514,129 @@ class BuildManagerWindow(QMainWindow):
                 f"  [런처] OK → dist/{exe_name}/{exe_name}.exe",
                 color=GREEN,
             )
+
+            total_size = _get_dir_size(dist_target)
+            self._log_msg(
+                f"  [빌드 크기] dist/{exe_name}/ 총 크기: {_format_file_size(total_size)}",
+                color=ACCENT,
+            )
         except OSError as e:
             self._log_msg(f"  [런처] 복사/rename 실패: {e}", color=RED)
+            self._build_process = None
+            self._log_msg("━━━ 빌드 완료 (런처 후처리 실패) ━━━", color=ORANGE)
+            self._finish_full_build()
+            return
 
         self._build_process = None
+        self._advance_progress("런처 빌드 완료")
+        self._start_inno_setup_build()
+
+    # ── Inno Setup 빌드 (전체 빌드 마지막 단계) ──
+    def _start_inno_setup_build(self):
+        """setup.iss 생성 후 Inno Setup 컴파일."""
+        root = self._get_project_root()
+        gen_script = root / "installer" / "_generate_iss.ps1"
+
+        if not gen_script.exists():
+            self._log_msg("  [Installer] SKIP: _generate_iss.ps1 없음", color=ORANGE)
+            self._finish_full_build()
+            return
+
+        # 1) setup.iss 생성
+        self._show_progress("Installer 생성 중...")
+        self._log_msg("  [Installer] setup.iss 생성 중...", color=ACCENT)
+        self._inno_process = QProcess(self)
+        self._inno_process.setWorkingDirectory(str(root))
+        self._inno_process.setProcessChannelMode(QProcess.MergedChannels)
+        self._inno_process.readyReadStandardOutput.connect(self._on_inno_stdout)
+        self._inno_process.finished.connect(self._on_generate_iss_finished)
+        self._inno_process.start(
+            "powershell",
+            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(gen_script)],
+        )
+
+    def _on_inno_stdout(self):
+        proc = getattr(self, "_inno_process", None)
+        if proc is None:
+            return
+        data = proc.readAllStandardOutput()
+        text = bytes(data).decode("utf-8", errors="replace").rstrip()
+        if text:
+            for line in text.splitlines():
+                self._log_raw(line)
+
+    def _on_generate_iss_finished(self, exit_code, exit_status):
+        """setup.iss 생성 완료 → ISCC 컴파일 시작."""
+        root = self._get_project_root()
+        self._inno_process = None
+
+        if exit_code != 0:
+            self._log_msg(f"  [Installer] setup.iss 생성 실패 (exit: {exit_code})", color=RED)
+            self._finish_full_build()
+            return
+
+        self._log_msg("  [Installer] setup.iss 생성 OK", color=GREEN)
+
+        # ISCC.exe 경로 탐색
+        iscc_paths = [
+            Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+            Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
+        ]
+        iscc = None
+        for p in iscc_paths:
+            if p.exists():
+                iscc = p
+                break
+
+        if iscc is None:
+            self._log_msg(
+                "  [Installer] SKIP: Inno Setup 6 미설치 (ISCC.exe 없음)",
+                color=ORANGE,
+            )
+            self._log_msg(
+                "    다운로드: https://jrsoftware.org/isdl.php",
+                color=FG2,
+            )
+            self._finish_full_build()
+            return
+
+        # 2) ISCC 컴파일
+        setup_iss = root / "installer" / "setup.iss"
+        self._log_msg("  [Installer] Inno Setup 컴파일 시작...", color=ACCENT)
+
+        self._inno_process = QProcess(self)
+        self._inno_process.setWorkingDirectory(str(root / "installer"))
+        self._inno_process.setProcessChannelMode(QProcess.MergedChannels)
+        self._inno_process.readyReadStandardOutput.connect(self._on_inno_stdout)
+        self._inno_process.finished.connect(self._on_inno_compile_finished)
+        self._inno_process.start(str(iscc), [str(setup_iss)])
+
+    def _on_inno_compile_finished(self, exit_code, exit_status):
+        """Inno Setup 컴파일 완료."""
+        self._inno_process = None
+        root = self._get_project_root()
+
+        if exit_code != 0:
+            self._log_msg(f"  [Installer] Inno Setup 컴파일 실패 (exit: {exit_code})", color=RED)
+        else:
+            self._log_msg("  [Installer] Inno Setup 컴파일 OK", color=GREEN)
+
+            output_dir = root / "installer" / "Output"
+            if output_dir.exists():
+                for exe in output_dir.glob("*_Setup.exe"):
+                    size = exe.stat().st_size
+                    self._log_msg(
+                        f"  [Installer] → {exe.name} ({_format_file_size(size)})",
+                        color=GREEN,
+                    )
+
+        self._advance_progress("Installer 생성 완료")
+        self._finish_full_build()
+
+    def _finish_full_build(self):
+        """전체 빌드 파이프라인 최종 완료."""
         self._log_msg("━━━ 전체 빌드 완료 ━━━", color=GREEN)
+        self._hide_progress()
         self._set_building(False)
         self._refresh_modules()
 

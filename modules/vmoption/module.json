@@ -11,10 +11,10 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈: VM 옵션 생성 기능"
     ],
-    "manual_url": "",
+    "manual_wiki": "",
+    "manual_sharepoint": "https://parkafm.sharepoint.com/:p:/s/MC-AX/IQDA37_3tmQcQJHJ1H82WrohAe8Mi_DtB6nm__MN6eMT6fw?e=iURKEa",
     "build": {
         "method": "copy",
         "copy_from": "VMOptionGenerator.exe"
-    },
-    "order": 5
+    }
 }

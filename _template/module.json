@@ -9,9 +9,10 @@
     "entry_dev": "main.py",
     "entry_prod": "main.exe",
     "changelog": [
-        "v1.0.0 — 초기 릴리즈"
+        {"version": "v1.0.0", "content": "초기 릴리즈"}
     ],
-    "manual_url": "",
+    "manual_wiki": "",
+    "manual_sharepoint": "",
     "build": {
         "method": "pyinstaller",
         "entry": "main.py",

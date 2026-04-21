@@ -11,7 +11,8 @@
     "changelog": [
         "v1.0.0 — 초기 릴리즈"
     ],
-    "manual_url": "http://10.4.1.141/books/research-checklist-revision/page/00-checklist-version",
+    "manual_wiki": "",
+    "manual_sharepoint": "https://parkafm.sharepoint.com/:p:/s/MC-AX/IQChUn4dv4o5RZ7ZRc3kYh8NAXX1Tl4xSiJ0x7S6W9iE020?e=Qlq1pB",
     "build": {
         "method": "copy",
         "copy_from": "DB Compare Tool.exe"

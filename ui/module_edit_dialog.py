@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QComboBox, QPushButton, QTextEdit,
     QFileDialog, QMessageBox, QFrame, QCheckBox,
-    QScrollArea, QWidget, QSizePolicy,
+    QScrollArea, QWidget, QSizePolicy, QListWidget,
 )
 from PySide6.QtCore import Qt
 
@@ -113,8 +113,13 @@ class ModuleEditDialog(QDialog):
         r_ver_icon.addStretch()
         sec1_layout.addLayout(self._row("버전", r_ver_icon))
 
-        self._desc_edit = QLineEdit()
-        self._desc_edit.setPlaceholderText("한 줄 설명")
+        self._desc_edit = QTextEdit()
+        self._desc_edit.setPlaceholderText("모듈 설명을 입력하세요...")
+        self._desc_edit.setFixedHeight(90)
+        self._desc_edit.setStyleSheet(
+            f"QTextEdit {{ background: {BG}; color: {FG}; border: 1px solid {BG3}; "
+            f"border-radius: 5px; padding: 6px; font-size: 12px; }}"
+        )
         sec1_layout.addLayout(self._row("설명", self._desc_edit))
 
         layout.addWidget(sec1)
@@ -285,30 +290,85 @@ class ModuleEditDialog(QDialog):
         sec4 = self._section("문서 관리")
         sec4_layout = sec4.layout()
 
-        self._manual_url_edit = QLineEdit()
-        self._manual_url_edit.setPlaceholderText("https://...")
-        sec4_layout.addLayout(self._row("매뉴얼 URL", self._manual_url_edit))
+        self._manual_wiki_edit = QLineEdit()
+        self._manual_wiki_edit.setPlaceholderText("https://mc-wiki...")
+        sec4_layout.addLayout(self._row("MC-Wiki URL", self._manual_wiki_edit))
+
+        self._manual_sp_edit = QLineEdit()
+        self._manual_sp_edit.setPlaceholderText("https://sharepoint...")
+        sec4_layout.addLayout(self._row("SharePoint URL", self._manual_sp_edit))
 
         cl_lbl = QLabel("변경사항:")
         cl_lbl.setStyleSheet(f"color: {FG2}; font-size: 12px; border: none;")
         sec4_layout.addWidget(cl_lbl)
 
-        self._changelog_edit = QTextEdit()
-        self._changelog_edit.setFixedHeight(80)
-        self._changelog_edit.setPlaceholderText(
-            "한 줄에 하나씩 입력\n"
-            "v1.0.0 — 초기 릴리즈\n"
-            "v1.1.0 — 차트 기능 추가"
+        _item_style = (
+            f"background: {BG2}; color: {FG}; border: 1px solid {BG3}; "
+            f"border-radius: 5px; padding: 4px; font-size: 12px;"
         )
-        self._changelog_edit.setStyleSheet(f"""
-            QTextEdit {{
-                background: {BG2}; color: {FG};
-                border: 1px solid {BG3}; border-radius: 5px;
-                padding: 5px 8px; font-size: 12px;
-            }}
-            QTextEdit:focus {{ border-color: {ACCENT}; }}
-        """)
-        sec4_layout.addWidget(self._changelog_edit)
+
+        cl_body = QHBoxLayout()
+        cl_body.setSpacing(8)
+
+        # 좌측: 버전 리스트 + 추가/삭제 버튼
+        cl_left = QVBoxLayout()
+        cl_left.setSpacing(4)
+
+        self._cl_list = QListWidget()
+        self._cl_list.setFixedWidth(120)
+        self._cl_list.setStyleSheet(
+            f"QListWidget {{ {_item_style} }}"
+            f"QListWidget::item {{ padding: 4px; }}"
+            f"QListWidget::item:selected {{ background: {ACCENT}; color: {BG}; border-radius: 3px; }}"
+        )
+        self._cl_list.currentRowChanged.connect(self._on_cl_selected)
+        cl_left.addWidget(self._cl_list, 1)
+
+        cl_btn_row = QHBoxLayout()
+        cl_btn_row.setSpacing(4)
+        _cl_btn_style = (
+            f"QPushButton {{ background: {BG2}; color: {FG}; border: 1px solid {BG3}; "
+            f"border-radius: 4px; padding: 2px 8px; font-size: 11px; }}"
+            f"QPushButton:hover {{ background: {BG3}; border-color: {ACCENT}; }}"
+        )
+        self._cl_ver_input = QLineEdit()
+        self._cl_ver_input.setPlaceholderText("v1.0.0")
+        self._cl_ver_input.setFixedWidth(60)
+        self._cl_ver_input.setStyleSheet(f"{_item_style}")
+        cl_btn_row.addWidget(self._cl_ver_input)
+
+        cl_add_btn = QPushButton("+")
+        cl_add_btn.setFixedSize(24, 24)
+        cl_add_btn.setCursor(Qt.PointingHandCursor)
+        cl_add_btn.setStyleSheet(_cl_btn_style)
+        cl_add_btn.clicked.connect(self._on_cl_add)
+        cl_btn_row.addWidget(cl_add_btn)
+
+        cl_del_btn = QPushButton("−")
+        cl_del_btn.setFixedSize(24, 24)
+        cl_del_btn.setCursor(Qt.PointingHandCursor)
+        cl_del_btn.setStyleSheet(_cl_btn_style)
+        cl_del_btn.clicked.connect(self._on_cl_delete)
+        cl_btn_row.addWidget(cl_del_btn)
+
+        cl_left.addLayout(cl_btn_row)
+        cl_body.addLayout(cl_left)
+
+        # 우측: 선택된 버전의 내용 편집
+        self._cl_content_edit = QTextEdit()
+        self._cl_content_edit.setPlaceholderText("변경 내용을 입력하세요...")
+        self._cl_content_edit.setStyleSheet(
+            f"QTextEdit {{ {_item_style} }}"
+            f"QTextEdit:focus {{ border-color: {ACCENT}; }}"
+        )
+        self._cl_content_edit.textChanged.connect(self._on_cl_content_changed)
+        cl_body.addWidget(self._cl_content_edit, 1)
+
+        sec4_layout.addLayout(cl_body)
+
+        # changelog 내부 데이터
+        self._cl_data: list[dict] = []
+        self._cl_updating = False
 
         layout.addWidget(sec4)
         layout.addStretch()
@@ -400,7 +460,7 @@ class ModuleEditDialog(QDialog):
         self._id_edit.setText(d.get("id", ""))
         self._name_edit.setText(d.get("name", ""))
         self._version_edit.setText(d.get("version", "1.0.0"))
-        self._desc_edit.setText(d.get("description", ""))
+        self._desc_edit.setPlainText(d.get("description", ""))
         self._icon_edit.setText(d.get("icon", ""))
         self._dev_path_edit.setText(d.get("dev_path", ""))
         self._entry_dev_edit.setText(d.get("entry_dev", "main.py"))
@@ -436,9 +496,11 @@ class ModuleEditDialog(QDialog):
         )
 
         # 문서 관리
-        self._manual_url_edit.setText(d.get("manual_url", ""))
-        changelog = d.get("changelog", [])
-        self._changelog_edit.setPlainText("\n".join(changelog))
+        self._manual_wiki_edit.setText(d.get("manual_wiki", d.get("manual_url", "")))
+        self._manual_sp_edit.setText(d.get("manual_sharepoint", ""))
+        from core.module_manager import ModuleInfo
+        changelog = ModuleInfo._parse_changelog(d.get("changelog", []))
+        self._load_changelog(changelog)
 
         self._on_method_changed(method)
         self._update_status()
@@ -479,6 +541,55 @@ class ModuleEditDialog(QDialog):
             self._status_lbl.setStyleSheet(f"color: {ORANGE}; font-size: 12px;")
         else:
             self._status_lbl.setText("")
+
+    # ── Changelog 슬롯 ──
+    def _on_cl_selected(self, row):
+        """버전 리스트 선택 변경 → 우측 내용 갱신."""
+        if self._cl_updating or row < 0 or row >= len(self._cl_data):
+            if row < 0:
+                self._cl_content_edit.setPlainText("")
+            return
+        self._cl_updating = True
+        self._cl_content_edit.setPlainText(self._cl_data[row].get("content", ""))
+        self._cl_updating = False
+
+    def _on_cl_content_changed(self):
+        """우측 내용 편집 → 데이터 반영."""
+        if self._cl_updating:
+            return
+        row = self._cl_list.currentRow()
+        if 0 <= row < len(self._cl_data):
+            self._cl_data[row]["content"] = self._cl_content_edit.toPlainText()
+
+    def _on_cl_add(self):
+        """버전 추가."""
+        ver = self._cl_ver_input.text().strip()
+        if not ver:
+            ver = f"v{self._version_edit.text().strip() or '1.0.0'}"
+        self._cl_data.append({"version": ver, "content": ""})
+        self._cl_list.addItem(ver)
+        self._cl_list.setCurrentRow(self._cl_list.count() - 1)
+        self._cl_ver_input.clear()
+
+    def _on_cl_delete(self):
+        """선택된 버전 삭제."""
+        row = self._cl_list.currentRow()
+        if row < 0:
+            return
+        self._cl_data.pop(row)
+        self._cl_list.takeItem(row)
+
+    def _load_changelog(self, changelog: list[dict]):
+        """changelog 데이터를 UI에 로드."""
+        self._cl_updating = True
+        self._cl_data = [dict(e) for e in changelog]
+        self._cl_list.clear()
+        for entry in self._cl_data:
+            self._cl_list.addItem(entry.get("version", ""))
+        self._cl_content_edit.clear()
+        self._cl_updating = False
+        if self._cl_data:
+            self._cl_list.setCurrentRow(0)
 
     def _browse_dev_path(self):
         path = QFileDialog.getExistingDirectory(
@@ -545,16 +656,14 @@ class ModuleEditDialog(QDialog):
             "name": name,
             "category": self._category_combo.currentText().strip() or "기타",
             "version": self._version_edit.text().strip() or "1.0.0",
-            "description": self._desc_edit.text().strip(),
+            "description": self._desc_edit.toPlainText().strip(),
             "icon": self._icon_edit.text().strip(),
             "dev_path": self._dev_path_edit.text().strip(),
             "entry_dev": self._entry_dev_edit.text().strip() or "main.py",
             "entry_prod": self._entry_prod_edit.text().strip() or "main.exe",
-            "changelog": [
-                line for line in self._changelog_edit.toPlainText().splitlines()
-                if line.strip()
-            ],
-            "manual_url": self._manual_url_edit.text().strip(),
+            "changelog": [e for e in self._cl_data if e.get("version") or e.get("content")],
+            "manual_wiki": self._manual_wiki_edit.text().strip(),
+            "manual_sharepoint": self._manual_sp_edit.text().strip(),
         }
 
         method = self._method_combo.currentText()

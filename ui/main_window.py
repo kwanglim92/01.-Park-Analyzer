@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QScrollArea, QTextEdit,
     QSizePolicy, QLineEdit, QDialog, QDialogButtonBox, QMessageBox,
+    QListWidget,
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QCursor
@@ -31,12 +32,13 @@ _PINNED_KEY = "⭐ Pinned"
 #  Release Notes Dialog
 # ═══════════════════════════════════════════════════
 class ChangelogDialog(QDialog):
-    """변경사항 팝업."""
+    """변경사항 팝업 — 좌측 버전 리스트 + 우측 내용 표시."""
 
-    def __init__(self, tool_name: str, changelog: list[str], parent=None):
+    def __init__(self, tool_name: str, changelog: list[dict], parent=None):
         super().__init__(parent)
+        self._changelog = changelog
         self.setWindowTitle(f"변경사항 — {tool_name}")
-        self.setMinimumSize(440, 300)
+        self.setMinimumSize(520, 340)
         self.setStyleSheet(f"""
             QDialog {{ background: {BG}; color: {FG}; }}
             QLabel {{ background: transparent; }}
@@ -50,31 +52,41 @@ class ChangelogDialog(QDialog):
         title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
-        # Changelog entries
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(f"QScrollArea {{ background: {BG}; border: none; }}")
-
-        content = QWidget()
-        content.setStyleSheet(f"background: {BG};")
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(8)
-
-        for entry in changelog:
-            entry_label = QLabel(f"• {entry}")
-            entry_label.setWordWrap(True)
-            entry_label.setStyleSheet(f"color: {FG2}; font-size: 13px;")
-            content_layout.addWidget(entry_label)
-
         if not changelog:
             empty = QLabel("변경사항이 없습니다.")
             empty.setStyleSheet(f"color: {FG2}; font-size: 13px;")
-            content_layout.addWidget(empty)
+            layout.addWidget(empty)
+        else:
+            body = QHBoxLayout()
+            body.setSpacing(12)
 
-        content_layout.addStretch()
-        scroll.setWidget(content)
-        layout.addWidget(scroll, 1)
+            # 좌측: 버전 리스트
+            self._ver_list = QListWidget()
+            self._ver_list.setFixedWidth(120)
+            self._ver_list.setStyleSheet(
+                f"QListWidget {{ background: {BG2}; color: {FG}; border: 1px solid {BG3}; "
+                f"border-radius: 5px; font-size: 12px; }}"
+                f"QListWidget::item {{ padding: 6px; }}"
+                f"QListWidget::item:selected {{ background: {ACCENT}; color: {BG}; border-radius: 3px; }}"
+            )
+            for entry in changelog:
+                self._ver_list.addItem(entry.get("version", ""))
+            self._ver_list.currentRowChanged.connect(self._on_ver_selected)
+            body.addWidget(self._ver_list)
+
+            # 우측: 내용 표시
+            self._content_view = QTextEdit()
+            self._content_view.setReadOnly(True)
+            self._content_view.setStyleSheet(
+                f"QTextEdit {{ background: {BG2}; color: {FG}; border: 1px solid {BG3}; "
+                f"border-radius: 5px; padding: 8px; font-size: 13px; }}"
+            )
+            body.addWidget(self._content_view, 1)
+
+            layout.addLayout(body, 1)
+
+            # 첫 번째 항목 선택
+            self._ver_list.setCurrentRow(0)
 
         # Close button
         btn_box = QDialogButtonBox(QDialogButtonBox.Close)
@@ -87,6 +99,10 @@ class ChangelogDialog(QDialog):
             QPushButton:hover {{ background: {BG3}; }}
         """)
         layout.addWidget(btn_box)
+
+    def _on_ver_selected(self, row):
+        if 0 <= row < len(self._changelog):
+            self._content_view.setPlainText(self._changelog[row].get("content", ""))
 
 
 # ═══════════════════════════════════════════════════
@@ -276,6 +292,19 @@ class ModuleCard(QFrame):
         self._status.setStyleSheet("font-size: 11px;")
         r3.addWidget(self._status)
 
+        wiki_ok = "O" if self._module.manual_wiki else "X"
+        sp_ok = "O" if self._module.manual_sharepoint else "X"
+        wiki_color = GREEN if self._module.manual_wiki else RED
+        sp_color = GREEN if self._module.manual_sharepoint else RED
+        doc_lbl = QLabel()
+        doc_lbl.setText(
+            f'MC-Wiki: <span style="color:{wiki_color}">{wiki_ok}</span>'
+            f' | SP: <span style="color:{sp_color}">{sp_ok}</span>'
+        )
+        doc_lbl.setTextFormat(Qt.RichText)
+        doc_lbl.setStyleSheet(f"color: {FG2}; font-size: 10px;")
+        r3.addWidget(doc_lbl)
+
         r3.addStretch()
 
         # Changelog button
@@ -336,9 +365,35 @@ class ModuleCard(QFrame):
         dlg.exec()
 
     def _open_manual(self):
-        if self._module.manual_url:
-            webbrowser.open(self._module.manual_url)
-            self._log(f"📖 {self._module.name} 매뉴얼 열기")
+        wiki = self._module.manual_wiki
+        sp = self._module.manual_sharepoint
+
+        if wiki and sp:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("매뉴얼")
+            msg.setText(f"{self._module.name}\n\n열고 싶은 매뉴얼을 선택하세요.")
+            wiki_btn = msg.addButton("MC-Wiki", QMessageBox.ActionRole)
+            sp_btn = msg.addButton("SharePoint", QMessageBox.ActionRole)
+            both_btn = msg.addButton("둘 다 열기", QMessageBox.ActionRole)
+            msg.addButton("취소", QMessageBox.RejectRole)
+            msg.exec()
+            clicked = msg.clickedButton()
+            if clicked == wiki_btn:
+                webbrowser.open(wiki)
+                self._log(f"📖 {self._module.name} MC-Wiki 매뉴얼 열기")
+            elif clicked == sp_btn:
+                webbrowser.open(sp)
+                self._log(f"📖 {self._module.name} SharePoint 매뉴얼 열기")
+            elif clicked == both_btn:
+                webbrowser.open(wiki)
+                webbrowser.open(sp)
+                self._log(f"📖 {self._module.name} 매뉴얼 열기 (MC-Wiki + SharePoint)")
+        elif wiki:
+            webbrowser.open(wiki)
+            self._log(f"📖 {self._module.name} MC-Wiki 매뉴얼 열기")
+        elif sp:
+            webbrowser.open(sp)
+            self._log(f"📖 {self._module.name} SharePoint 매뉴얼 열기")
         else:
             QMessageBox.information(
                 self, "매뉴얼",

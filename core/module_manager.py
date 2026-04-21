@@ -46,8 +46,9 @@ class ModuleInfo:
     dev_path: str = ""
     entry_dev: str = "main.py"
     entry_prod: str = "main.exe"
-    changelog: list[str] = field(default_factory=list)
-    manual_url: str = ""
+    changelog: list[dict] = field(default_factory=list)
+    manual_wiki: str = ""
+    manual_sharepoint: str = ""
     order: int = 0
     build_config: dict = field(default_factory=dict)
 
@@ -71,11 +72,28 @@ class ModuleInfo:
             dev_path=data.get("dev_path", ""),
             entry_dev=data.get("entry_dev", "main.py"),
             entry_prod=data.get("entry_prod", "main.exe"),
-            changelog=data.get("changelog", []),
-            manual_url=data.get("manual_url", ""),
+            changelog=cls._parse_changelog(data.get("changelog", [])),
+            manual_wiki=data.get("manual_wiki", data.get("manual_url", "")),
+            manual_sharepoint=data.get("manual_sharepoint", ""),
             order=data.get("order", 0),
             build_config=data.get("build", {}),
         )
+
+    @staticmethod
+    def _parse_changelog(raw: list) -> list[dict]:
+        """changelog를 구조화된 형식으로 변환 (하위호환)."""
+        result = []
+        for entry in raw:
+            if isinstance(entry, dict):
+                result.append(entry)
+            elif isinstance(entry, str):
+                import re
+                m = re.match(r"^(v?\d+\.\d+(?:\.\d+)?)\s*[—\-–]\s*(.*)$", entry)
+                if m:
+                    result.append({"version": m.group(1), "content": m.group(2).strip()})
+                else:
+                    result.append({"version": "", "content": entry.strip()})
+        return result
 
     def to_json(self) -> dict:
         """ModuleInfo를 JSON 직렬화 가능한 dict로 변환."""
@@ -90,7 +108,8 @@ class ModuleInfo:
             "entry_dev": self.entry_dev,
             "entry_prod": self.entry_prod,
             "changelog": self.changelog,
-            "manual_url": self.manual_url,
+            "manual_wiki": self.manual_wiki,
+            "manual_sharepoint": self.manual_sharepoint,
             "order": self.order,
         }
         if self.build_config:

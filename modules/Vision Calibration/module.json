@@ -1,20 +1,32 @@
 {
     "id": "Vision Calibration",
     "name": "Vision Calibration",
-    "category": "Utility",
-    "version": "1.1.0",
-    "description": "Capture Image 명도 측정\n/ 기준값(명도: 128)에 따른 DB 값(LightStrengthGain) 자동 변경 및 적용",
+    "category": "Vision",
+    "version": "1.2.0",
+    "description": "Capture Image 명도 측정\n기준값(명도: 128)에 따른 DB값(LightStrengthGain) 자동 변경 및 적용",
     "icon": "",
-    "dev_path": "C:/Users/Spare/Desktop/Tool",
-    "entry_dev": "Vision_Cal(v1.1.0).exe",
-    "entry_prod": "Vision_Cal(v1.1.0).exe",
+    "dev_path": "C:/Users/Spare/Desktop/03. Program/01. Park Analyzer/modules/Vision Calibration",
+    "entry_dev": "VisionBrightnessCalibration.exe",
+    "entry_prod": "VisionBrightnessCalibration.exe",
     "changelog": [
-        "v1.0.0 — 초기 릴리즈",
-        "v1.1.0 - 기본 선택 영역 설정 기능 추가 "
+        {
+            "version": "v1.0.0",
+            "content": "초기 릴리즈"
+        },
+        {
+            "version": "v1.1.0",
+            "content": "기본 선택 영역 설정 기능 추가"
+        },
+        {
+            "version": "v1.2.0",
+            "content": "1. ContrastOffset 항목 제거\n2. 사전 준비 사항 Check List 추가"
+        }
     ],
-    "manual_url": "",
+    "manual_wiki": "http://10.4.1.141/books/wi-work-instruction/page/vision-check-the-vision-brightness-calibration",
+    "manual_sharepoint": "https://parkafm.sharepoint.com/:p:/s/MC-AX/IQBHgraiR2GjTYqIdSdTVyFiAY-zm3ZtmE5HFnl8qgzFNPo?e=zCksgS",
     "build": {
         "method": "copy",
-        "copy_from": "Vision_Cal(v1.1.0).exe"
-    }
+        "copy_from": "VisionBrightnessCalibration.exe"
+    },
+    "order": 5
 }

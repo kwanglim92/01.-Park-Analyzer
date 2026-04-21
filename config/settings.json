@@ -1,14 +1,14 @@
 {
   "app": {
     "version": "1.0.0",
-    "display_name": "통합 분석 프로그램",
-    "build_name": "IntegratedAnalyzer",
+    "display_name": "PASS(Park Analysis Screening System)",
+    "build_name": "PASS(Park Analysis Screening System)",
     "dev_mode": true,
     "language": "ko"
   },
   "window": {
-    "width": 1902,
-    "height": 991
+    "width": 1920,
+    "height": 1009
   },
   "pinned": []
 }
